@@ -24,10 +24,9 @@ def save_webm_chunk(audio_bytes: bytes) -> str:
 
 
 def convert_webm_bytes_to_wav(audio_bytes: bytes) -> bytes:
-    """Convierte audio WebM/Opus a WAV PCM 16kHz mono usando ffmpeg vía pipe."""
+    """Convierte audio a WAV PCM 16kHz mono usando ffmpeg vía pipe."""
     cmd = [
         "ffmpeg",
-        "-f", "webm",
         "-i", "pipe:0",
         "-acodec", "pcm_s16le",
         "-ac", "1",
@@ -43,9 +42,9 @@ def convert_webm_bytes_to_wav(audio_bytes: bytes) -> bytes:
     )
     if proc.returncode != 0:
         stderr = proc.stderr.decode("utf-8", errors="replace")[-300:]
-        raise RuntimeError(f"ffmpeg failed: {stderr.strip()}")
-    if len(proc.stdout) == 0:
-        raise RuntimeError("ffmpeg produced empty WAV")
+        raise RuntimeError(f"ffmpeg: {stderr.strip()}")
+    if len(proc.stdout) < 44:  # min WAV header size
+        raise RuntimeError("ffmpeg produced empty or invalid WAV")
     return proc.stdout
 
 
