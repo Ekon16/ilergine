@@ -3,7 +3,7 @@
 import { useRef, useCallback, useState } from "react";
 
 interface UseAudioCaptureOptions {
-  onChunk: (base64Data: string) => void;
+  onChunk: (blob: Blob) => void;
 }
 
 export function useAudioCapture({ onChunk }: UseAudioCaptureOptions) {
@@ -34,14 +34,7 @@ export function useAudioCapture({ onChunk }: UseAudioCaptureOptions) {
 
       recorder.ondataavailable = (event: BlobEvent) => {
         if (event.data.size > 0) {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            const base64 = (reader.result as string).split(",")[1];
-            if (base64) {
-              onChunk(base64);
-            }
-          };
-          reader.readAsDataURL(event.data);
+          onChunk(event.data);
         }
       };
 

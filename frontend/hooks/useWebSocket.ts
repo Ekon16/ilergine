@@ -155,5 +155,11 @@ export function useWebSocket({ pacienteId, token }: UseWebSocketOptions) {
     }
   }, []);
 
-  return { send, disconnect };
+  const sendBinary = useCallback((data: ArrayBuffer | Blob) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(data);
+    }
+  }, []);
+
+  return { send, sendBinary, disconnect };
 }

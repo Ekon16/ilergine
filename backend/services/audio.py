@@ -33,7 +33,7 @@ def convert_webm_to_wav(webm_path: str) -> bytes:
 
 
 def convert_webm_bytes_to_wav(audio_bytes: bytes) -> bytes:
-    import ffmpeg
+    import subprocess
     import tempfile
 
     with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as webm_tmp:
@@ -44,19 +44,38 @@ def convert_webm_bytes_to_wav(audio_bytes: bytes) -> bytes:
         wav_path = wav_tmp.name
 
     try:
-        (
-            ffmpeg
-            .input(webm_path)
-            .output(wav_path, format="wav", acodec="pcm_s16le", ac=1, ar="16000")
-            .overwrite_output()
-            .run(quiet=True)
-        )
+        # Intentar auto-detectar el formato (sin -f)
+        cmd = [
+            "ffmpeg",
+            "-i", webm_path,
+            "-acodec", "pcm_s16le",
+            "-ac", "1",
+            "-ar", "16000",
+            "-y",
+            wav_path,
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+        if result.returncode != 0:
+            raise RuntimeError(f"ffmpeg failed: {result.stderr.strip()[-300:]}")
         with open(wav_path, "rb") as f:
             wav_data = f.read()
+        if len(wav_data) == 0:
+            raise RuntimeError("ffmpeg produced empty WAV")
         return wav_data
     finally:
-        os.unlink(webm_path)
-        os.unlink(wav_path)
+        for p in [webm_path, wav_path]:
+            try:
+                os.unlink(p)
+            except OSError:
+                pass
+
+
+def convert_webm_accumulated_to_wav(audio_chunks: list[bytes]) -> bytes:
+    """Concatena múltiples chunks WebM y los convierte a WAV."""
+    if not audio_chunks:
+        raise ValueError("No audio chunks to convert")
+    combined = b"".join(audio_chunks)
+    return convert_webm_bytes_to_wav(combined)
 
 
 def cleanup_chunk(filepath: str):

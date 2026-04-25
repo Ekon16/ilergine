@@ -36,13 +36,13 @@ export default function ConsultaPage() {
     reset();
   }, []);
 
-  const { send } = useWebSocket({ pacienteId, token: token || "" });
+  const { send, sendBinary } = useWebSocket({ pacienteId, token: token || "" });
 
   const handleAudioChunk = useCallback(
-    (base64: string) => {
-      send({ type: "audio_chunk", data: base64 });
+    (blob: Blob) => {
+      sendBinary(blob);
     },
-    [send]
+    [sendBinary]
   );
 
   const { isRecording, toggle: toggleMic, error: micError, start: startMic } = useAudioCapture({
