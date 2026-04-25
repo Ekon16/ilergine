@@ -114,6 +114,12 @@ export default function ConsultaPage() {
         onToggleMic={toggleMic}
       />
 
+      {micError && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 text-sm text-amber-800">
+          {micError}.{micError.includes("HTTPS") ? "" : " ¿Aceptaste el permiso de micrófono?"}
+        </div>
+      )}
+
       <div className="flex flex-1 min-h-0">
         {/* Panel Izquierdo: 60% Chat */}
         <div className="w-[60%] flex flex-col border-r min-w-0">

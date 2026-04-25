@@ -53,10 +53,13 @@ export function useAudioCapture({ onChunk }: UseAudioCaptureOptions) {
       recorder.start(1000);
       setIsRecording(true);
     } catch (err) {
+      const isSecureContext = typeof window !== "undefined" && window.isSecureContext;
       const message =
         err instanceof DOMException && err.name === "NotAllowedError"
-          ? "Permiso de micrófono denegado"
-          : "Error al acceder al micrófono";
+          ? "Permiso de micrófono denegado. Haz clic en el ícono del micrófono para intentar de nuevo."
+          : !isSecureContext
+          ? "Micrófono requiere HTTPS o localhost. Usa http://localhost:3000 o configura SSL."
+          : `Error al acceder al micrófono: ${err instanceof Error ? err.message : ""}`;
       setError(message);
     }
   }, [onChunk]);
