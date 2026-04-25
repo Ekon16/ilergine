@@ -1,0 +1,36 @@
+# .cursorrules - Ilergine Project Rules
+
+## Stack Tecnológico
+- Frontend: Next.js 14+ (App Router), TypeScript, Tailwind CSS, Shadcn/ui
+- Estado: Zustand (OBLIGATORIO)
+- Backend: Python 3.11+, FastAPI, WebSockets, JWT, Asyncio
+- Audio: ffmpeg-python/pydub, faster-whisper
+- BD: PostgreSQL + pgvector, SQLAlchemy asíncrono
+- IA: faster-whisper + ollama (local)
+
+## Prohibiciones Absolutas
+- ❌ NO usar `any` en TypeScript o Python
+- ❌ NO usar BaseModel de Pydantic deprecated
+- ❌ NO enviar datos a APIs externas (OpenAI, Google, etc.)
+- ❌ NO usar datos deExample.com
+
+## Directivas de Código
+- Usar Pydantic v2 con下一代 validación
+- Interfaces explícitas TypeScript para Zustand
+- JWT en `Authorization: Bearer <token>`
+- FFMPEG obligatorio en Docker
+- Purga de audios a las 00:00 (RGPD)
+
+## Esquema JSON Ollama (OBLIGATORIO)
+```json
+{
+  "checklist_tareas": [{"tipo": "receta|volante|prueba", "detalle": "string", "completado": boolean}],
+  "rapport_personal": ["string"],
+  "sugerencias_vivo": ["string"]
+}
+```
+
+## UI/UX
+- Proporción 60% chat / 40% insights
+- Solo componentes Shadcn/ui
+- "🔴 IA Escuchando" / "Reconectando..." según estado WS

@@ -1,0 +1,68 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: ilergine-db
+    environment:
+      POSTGRES_DB: ilergine
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: ../infra/Dockerfile.backend
+    container_name: ilergine-backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/ilergine
+      JWT_SECRET_KEY: ilergine-secret-key-change-in-production
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: llama3.2:3b
+      WHISPER_MODEL: small
+      WHISPER_LANGUAGE: es
+      AUDIO_TEMP_DIR: /tmp/audio
+      CORS_ORIGINS: '["http://localhost:3000","http://127.0.0.1:3000","http://78.47.196.20:3000","http://frontend:3000"]'
+    ports:
+      - "8001:8000"
+    volumes:
+      - audio_data:/tmp/audio
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: ../infra/Dockerfile.frontend
+    container_name: ilergine-frontend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8001
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ilergine-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+
+
+volumes:
+  postgres_data:
+  audio_data:
+  ollama_data:
