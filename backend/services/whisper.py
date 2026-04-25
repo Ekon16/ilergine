@@ -42,10 +42,16 @@ class WhisperService:
             loop = asyncio.get_event_loop()
 
             def _transcribe():
-                segments, _ = self._model.transcribe(
+                segments, info = self._model.transcribe(
                     tmp_path,
                     language=settings.WHISPER_LANGUAGE,
                     beam_size=5,
+                    vad_filter=True,
+                    vad_parameters=dict(
+                        threshold=0.5,
+                        min_speech_duration_ms=250,
+                        min_silence_duration_ms=100,
+                    ),
                 )
                 return " ".join(segment.text.strip() for segment in segments)
 

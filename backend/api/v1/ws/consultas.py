@@ -175,8 +175,19 @@ async def consulta_live(
                         print(f"[WS] whisper error: {e}", flush=True)
                         continue
 
-                    if not transcription.strip():
+                    if not transcription or not transcription.strip():
                         continue
+
+                    # Filtrar alucinaciones comunes del modelo con silencio
+                    hallucination_patterns = [
+                        "subtítulos", "amara.org", "amara org",
+                        "comunidad de amara", "subtitulos", "www.",
+                    ]
+                    text_lower = transcription.strip().lower()
+                    if any(p in text_lower for p in hallucination_patterns):
+                        if len(text_lower) < 80:
+                            print(f"[WS] Filtered hallucination: {transcription}", flush=True)
+                            continue
 
                     transcripcion_completa.append(transcription)
 
