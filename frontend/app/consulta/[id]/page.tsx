@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { MessageSquare, Brain } from "lucide-react";
+import { MessageSquare, Brain, Mic } from "lucide-react";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useAudioCapture } from "@/hooks/useAudioCapture";
 import { useConsultaStore } from "@/stores/useConsultaStore";
@@ -12,6 +12,7 @@ import { InsightsPanel } from "@/components/insights/insights-panel";
 import { FinalizarDialog } from "@/components/insights/finalizar-dialog";
 import { FichaPacienteSlideOver } from "@/components/paciente/ficha-slideover";
 import { Spinner } from "@/components/ui/spinner";
+import { Button } from "@/components/ui/button";
 
 export default function ConsultaPage() {
   const router = useRouter();
@@ -38,6 +39,8 @@ export default function ConsultaPage() {
 
   const { send, sendBinary } = useWebSocket({ pacienteId, token: token || "" });
 
+  const [micAccepted, setMicAccepted] = useState(false);
+
   const handleAudioChunk = useCallback(
     (blob: Blob) => {
       sendBinary(blob);
@@ -49,12 +52,17 @@ export default function ConsultaPage() {
     onChunk: handleAudioChunk,
   });
 
-  // Auto-iniciar micrófono cuando el WebSocket conecte
+  const handleActivateMic = useCallback(async () => {
+    await startMic();
+    setMicAccepted(true);
+  }, [startMic]);
+
+  // Auto-iniciar micrófono cuando el WebSocket conecte Y el usuario ya aceptó
   useEffect(() => {
-    if (status === "listening" && !isRecording) {
+    if (status === "listening" && micAccepted && !isRecording) {
       startMic();
     }
-  }, [status, isRecording, startMic]);
+  }, [status, micAccepted, isRecording, startMic]);
 
   const handleFinalizar = useCallback(() => {
     send({ type: "finalizar" });
@@ -80,6 +88,33 @@ export default function ConsultaPage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Spinner />
+      </div>
+    );
+  }
+
+  if (!micAccepted && !finalizado) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/40">
+        <div className="text-center space-y-6 p-8 max-w-md">
+          <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+            <Mic className="h-8 w-8 text-primary" />
+          </div>
+          <h2 className="text-xl font-bold">Activar Micrófono</h2>
+          <p className="text-muted-foreground">
+            Para transcribir la consulta en tiempo real, necesitas activar el micrófono.
+          </p>
+          {micError && (
+            <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">
+              {micError}
+            </p>
+          )}
+          <Button size="lg" onClick={handleActivateMic}>
+            Activar Micrófono
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            El navegador te pedirá permiso para usar el micrófono.
+          </p>
+        </div>
       </div>
     );
   }

@@ -2,6 +2,7 @@ import os
 import io
 import base64
 import uuid
+import subprocess
 from pathlib import Path
 from core.config import settings
 
@@ -22,60 +23,30 @@ def save_webm_chunk(audio_bytes: bytes) -> str:
     return filepath
 
 
-def convert_webm_to_wav(webm_path: str) -> bytes:
-    from pydub import AudioSegment
-
-    audio = AudioSegment.from_file(webm_path, format="webm")
-    wav_buffer = io.BytesIO()
-    audio.export(wav_buffer, format="wav")
-    wav_buffer.seek(0)
-    return wav_buffer.read()
-
-
 def convert_webm_bytes_to_wav(audio_bytes: bytes) -> bytes:
-    import subprocess
-    import tempfile
-
-    with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as webm_tmp:
-        webm_tmp.write(audio_bytes)
-        webm_path = webm_tmp.name
-
-    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as wav_tmp:
-        wav_path = wav_tmp.name
-
-    try:
-        # Intentar auto-detectar el formato (sin -f)
-        cmd = [
-            "ffmpeg",
-            "-i", webm_path,
-            "-acodec", "pcm_s16le",
-            "-ac", "1",
-            "-ar", "16000",
-            "-y",
-            wav_path,
-        ]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
-        if result.returncode != 0:
-            raise RuntimeError(f"ffmpeg failed: {result.stderr.strip()[-300:]}")
-        with open(wav_path, "rb") as f:
-            wav_data = f.read()
-        if len(wav_data) == 0:
-            raise RuntimeError("ffmpeg produced empty WAV")
-        return wav_data
-    finally:
-        for p in [webm_path, wav_path]:
-            try:
-                os.unlink(p)
-            except OSError:
-                pass
-
-
-def convert_webm_accumulated_to_wav(audio_chunks: list[bytes]) -> bytes:
-    """Concatena múltiples chunks WebM y los convierte a WAV."""
-    if not audio_chunks:
-        raise ValueError("No audio chunks to convert")
-    combined = b"".join(audio_chunks)
-    return convert_webm_bytes_to_wav(combined)
+    """Convierte audio WebM/Opus a WAV PCM 16kHz mono usando ffmpeg vía pipe."""
+    cmd = [
+        "ffmpeg",
+        "-f", "webm",
+        "-i", "pipe:0",
+        "-acodec", "pcm_s16le",
+        "-ac", "1",
+        "-ar", "16000",
+        "-f", "wav",
+        "pipe:1",
+    ]
+    proc = subprocess.run(
+        cmd,
+        input=audio_bytes,
+        capture_output=True,
+        timeout=15,
+    )
+    if proc.returncode != 0:
+        stderr = proc.stderr.decode("utf-8", errors="replace")[-300:]
+        raise RuntimeError(f"ffmpeg failed: {stderr.strip()}")
+    if len(proc.stdout) == 0:
+        raise RuntimeError("ffmpeg produced empty WAV")
+    return proc.stdout
 
 
 def cleanup_chunk(filepath: str):

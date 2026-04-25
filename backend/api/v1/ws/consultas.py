@@ -22,7 +22,6 @@ from services.audio import (
     decode_base64_audio,
     save_webm_chunk,
     convert_webm_bytes_to_wav,
-    convert_webm_accumulated_to_wav,
     cleanup_chunk,
 )
 from services.whisper import get_whisper
@@ -106,9 +105,7 @@ async def consulta_live(
         consulta_id = uuid.uuid4()
 
         accumulated_audio: list[bytes] = []
-        webm_header: bytes | None = None  # El primer chunk tiene el header WebM
         last_transcription_time = datetime.now(timezone.utc)
-        last_ollama_call = datetime.now(timezone.utc)
         last_ollama_call = datetime.now(timezone.utc)
 
         while True:
@@ -158,41 +155,25 @@ async def consulta_live(
 
             elif "bytes" in raw:
                 audio_bytes = raw["bytes"]
-                print(f"[WS] Received binary audio: {len(audio_bytes)} bytes", flush=True)
-
-                # El primer chunk contiene el header WebM, lo guardamos
-                if webm_header is None:
-                    webm_header = audio_bytes
-
                 accumulated_audio.append(audio_bytes)
 
-                # Transcribir cada ~3 segundos de audio acumulado
                 now = datetime.now(timezone.utc)
                 if (now - last_transcription_time).total_seconds() >= 3 and len(accumulated_audio) > 0:
-                    # Prependemos el header para que ffmpeg pueda decodificar
-                    combined = webm_header + b"".join(accumulated_audio[1:]) if len(accumulated_audio) > 1 else webm_header
-                    chunk_path = save_webm_chunk(combined)
-                    try:
-                        wav_bytes = convert_webm_bytes_to_wav(combined)
-                    except Exception as e:
-                        print(f"[WS] audio conversion error: {e}", flush=True)
-                        cleanup_chunk(chunk_path)
-                        accumulated_audio = []
-                        last_transcription_time = now
-                        continue
-
-                    try:
-                        transcription = await whisper_service.transcribe(wav_bytes)
-                    except Exception as e:
-                        print(f"[WS] transcription error: {e}", flush=True)
-                        cleanup_chunk(chunk_path)
-                        accumulated_audio = []
-                        last_transcription_time = now
-                        continue
-
-                    cleanup_chunk(chunk_path)
+                    combined = b"".join(accumulated_audio)
                     accumulated_audio = []
                     last_transcription_time = now
+
+                    try:
+                        wav = convert_webm_bytes_to_wav(combined)
+                    except Exception as e:
+                        print(f"[WS] ffmpeg error: {e}", flush=True)
+                        continue
+
+                    try:
+                        transcription = await whisper_service.transcribe(wav)
+                    except Exception as e:
+                        print(f"[WS] whisper error: {e}", flush=True)
+                        continue
 
                     if not transcription.strip():
                         continue
@@ -206,19 +187,17 @@ async def consulta_live(
                         "timestamp": datetime.now(timezone.utc).isoformat(),
                     })
 
-                    print(f"[WS] Transcribed: {transcription[:100]}", flush=True)
+                    print(f"[WS] Transcribed: {transcription[:120]}", flush=True)
 
                     # Ollama cada ~30 segundos
                     if (now - last_ollama_call).total_seconds() >= 30 and len(transcripcion_completa) > 0:
                         full_transcript = " ".join(transcripcion_completa)
                         insights = await query_ollama(full_transcript, contexto)
-
                         if insights:
                             await websocket.send_json({
                                 "type": "insights",
                                 "data": insights.model_dump(),
                             })
-
                         last_ollama_call = now
 
     except WebSocketDisconnect:
