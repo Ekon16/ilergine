@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { MessageSquare, Brain } from "lucide-react";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { useAudioCapture } from "@/hooks/useAudioCapture";
 import { useConsultaStore } from "@/stores/useConsultaStore";
 import { ConsultaHeader } from "@/components/chat/consulta-header";
 import { ChatPanel } from "@/components/chat/chat-panel";
@@ -36,6 +37,24 @@ export default function ConsultaPage() {
   }, []);
 
   const { send } = useWebSocket({ pacienteId, token: token || "" });
+
+  const handleAudioChunk = useCallback(
+    (base64: string) => {
+      send({ type: "audio_chunk", data: base64 });
+    },
+    [send]
+  );
+
+  const { isRecording, toggle: toggleMic, error: micError, start: startMic } = useAudioCapture({
+    onChunk: handleAudioChunk,
+  });
+
+  // Auto-iniciar micrófono cuando el WebSocket conecte
+  useEffect(() => {
+    if (status === "listening" && !isRecording) {
+      startMic();
+    }
+  }, [status, isRecording, startMic]);
 
   const handleFinalizar = useCallback(() => {
     send({ type: "finalizar" });
@@ -92,6 +111,7 @@ export default function ConsultaPage() {
       <ConsultaHeader
         onFinalizar={handlePedirFinalizar}
         onOpenFicha={() => setShowFicha(true)}
+        onToggleMic={toggleMic}
       />
 
       <div className="flex flex-1 min-h-0">
